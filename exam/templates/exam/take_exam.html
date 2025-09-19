@@ -1,0 +1,459 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load exam_extras %}
+
+{% block title %}Taking: {{ exam.title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .question-card {
+        margin-bottom: 2rem;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+    }
+    
+    .question-header {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-bottom: 1px solid #dee2e6;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+    
+    .choice-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .choice-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .choice-item:last-child {
+        border-bottom: none;
+    }
+    
+    .choice-item input[type="radio"] {
+        margin-right: 0.75rem;
+    }
+    
+    .timer-box {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #fff;
+        border: 2px solid #007bff;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        z-index: 1000;
+        min-width: 200px;
+    }
+    
+    .timer-warning {
+        border-color: #ffc107 !important;
+        background-color: #fff3cd !important;
+    }
+    
+    .timer-danger {
+        border-color: #dc3545 !important;
+        background-color: #f8d7da !important;
+    }
+    
+    .progress-bar {
+        height: 8px;
+        margin-top: 10px;
+    }
+    
+    .question-nav {
+        position: sticky;
+        top: 20px;
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .question-nav-item {
+        display: inline-block;
+        width: 35px;
+        height: 35px;
+        line-height: 35px;
+        text-align: center;
+        margin: 2px;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #6c757d;
+        border: 1px solid #dee2e6;
+        background: #fff;
+    }
+    
+    .question-nav-item.answered {
+        background: #28a745;
+        color: #fff;
+        border-color: #28a745;
+    }
+    
+    .question-nav-item.current {
+        background: #007bff;
+        color: #fff;
+        border-color: #007bff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Timer Box -->
+    <div id="timer-box" class="timer-box">
+        <div class="text-center">
+            <h6 class="mb-2"><i class="fas fa-clock me-1"></i> Time Remaining</h6>
+            <div id="timer-display" class="h4 text-primary mb-2">{{ time_remaining|floatformat:0 }}</div>
+            <div class="progress">
+                <div id="timer-progress" class="progress-bar bg-primary" role="progressbar"></div>
+            </div>
+            <small class="text-muted mt-1 d-block">Auto-submit when time expires</small>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Questions Section -->
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        {{ exam.title }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        <strong>Instructions:</strong> Select the best answer for each question. 
+                        Your answers are automatically saved. You can navigate between questions freely.
+                    </p>
+                    
+                    <!-- Questions -->
+                    <form id="exam-form">
+                        {% csrf_token %}
+                        {% for question in questions %}
+                            <div class="question-card" id="question-{{ question.id }}">
+                                <div class="question-header">
+                                    <h6 class="mb-1">
+                                        Question {{ forloop.counter }} 
+                                        <span class="badge bg-secondary">{{ question.marks }} mark{{ question.marks|pluralize }}</span>
+                                    </h6>
+                                </div>
+                                <div class="p-3">
+                                    <p class="question-text mb-3">{{ question.question_text }}</p>
+                                    
+                                    {% for choice in question.choices.all %}
+                                        <div class="choice-item" onclick="selectChoice({{ question.id }}, {{ choice.id }}, this)">
+                                            <input 
+                                                type="radio" 
+                                                name="question_{{ question.id }}" 
+                                                value="{{ choice.id }}" 
+                                                id="choice_{{ choice.id }}"
+                                                {% if existing_answers|get_item:question.id == choice.id %}checked{% endif %}
+                                            >
+                                            <label for="choice_{{ choice.id }}" class="mb-0">
+                                                <strong>{{ choice.choice_label }}.</strong> {{ choice.choice_text }}
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation Sidebar -->
+        <div class="col-md-4">
+            <div class="question-nav">
+                <h6 class="mb-3"><i class="fas fa-list me-1"></i> Question Navigation</h6>
+                <div class="mb-3">
+                    {% for question in questions %}
+                        <a href="#question-{{ question.id }}" 
+                           class="question-nav-item {% if existing_answers|get_item:question.id %}answered{% endif %}" 
+                           id="nav-{{ question.id }}"
+                           onclick="scrollToQuestion({{ question.id }})">
+                            {{ forloop.counter }}
+                        </a>
+                    {% endfor %}
+                </div>
+                
+                <div class="text-center">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-success" onclick="submitExam()">
+                            <i class="fas fa-check me-1"></i>
+                            Submit Exam
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="saveProgress()">
+                            <i class="fas fa-save me-1"></i>
+                            Save Progress
+                        </button>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <!-- Legend -->
+                <div class="small">
+                    <div class="mb-1">
+                        <span class="question-nav-item answered" style="display: inline-block; width: 20px; height: 20px; line-height: 20px; font-size: 10px;">✓</span>
+                        <span class="ms-2">Answered</span>
+                    </div>
+                    <div>
+                        <span class="question-nav-item" style="display: inline-block; width: 20px; height: 20px; line-height: 20px; font-size: 10px;">?</span>
+                        <span class="ms-2">Not answered</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Auto-submit Modal -->
+<div class="modal fade" id="autoSubmitModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Time's Up!
+                </h5>
+            </div>
+            <div class="modal-body text-center">
+                <p>Your exam time has expired and will be automatically submitted.</p>
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Submitting...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Exam session data
+let timeRemaining = {{ time_remaining }};
+const totalTime = {{ exam.duration_minutes }} * 60;
+const submissionId = {{ submission.id }};
+let answers = {{ existing_answers|safe }};
+let autoSaveInterval;
+let timerInterval;
+
+// Prevent page unload without warning
+window.addEventListener('beforeunload', function(e) {
+    if (timeRemaining > 0) {
+        e.preventDefault();
+        e.returnValue = 'Are you sure you want to leave? Your exam progress may be lost.';
+        return e.returnValue;
+    }
+});
+
+// Disable right-click context menu
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+});
+
+// Disable certain keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    // Disable F12, Ctrl+Shift+I, Ctrl+U, etc.
+    if (e.key === 'F12' || 
+        (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+        (e.ctrlKey && e.key === 'U') ||
+        (e.ctrlKey && e.shiftKey && e.key === 'C')) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// Timer functions
+function updateTimer() {
+    if (timeRemaining <= 0) {
+        handleTimeUp();
+        return;
+    }
+    
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    document.getElementById('timer-display').textContent = display;
+    
+    // Update progress bar
+    const progress = ((totalTime - timeRemaining) / totalTime) * 100;
+    document.getElementById('timer-progress').style.width = progress + '%';
+    
+    // Update timer box styling based on remaining time
+    const timerBox = document.getElementById('timer-box');
+    if (timeRemaining <= 300) { // 5 minutes
+        timerBox.classList.add('timer-danger');
+        timerBox.classList.remove('timer-warning');
+    } else if (timeRemaining <= 600) { // 10 minutes
+        timerBox.classList.add('timer-warning');
+        timerBox.classList.remove('timer-danger');
+    }
+    
+    timeRemaining--;
+}
+
+function handleTimeUp() {
+    clearInterval(timerInterval);
+    clearInterval(autoSaveInterval);
+    
+    // Show auto-submit modal
+    const modal = new bootstrap.Modal(document.getElementById('autoSubmitModal'));
+    modal.show();
+    
+    // Auto-submit after 3 seconds
+    setTimeout(() => {
+        window.location.href = `/take/${submissionId}/`;
+    }, 3000);
+}
+
+// Answer selection
+function selectChoice(questionId, choiceId, element) {
+    // Update radio button
+    const radio = element.querySelector('input[type="radio"]');
+    radio.checked = true;
+    
+    // Update answers object
+    answers[questionId] = choiceId;
+    
+    // Update navigation
+    document.getElementById(`nav-${questionId}`).classList.add('answered');
+    
+    // Save answer
+    saveAnswer(questionId, choiceId);
+}
+
+// Save individual answer
+function saveAnswer(questionId, choiceId) {
+    fetch(`/take/${submissionId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `action=save_answer&question_id=${questionId}&choice_id=${choiceId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            console.error('Failed to save answer:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving answer:', error);
+    });
+}
+
+// Save all progress
+function saveProgress() {
+    // This is mainly for user feedback since answers are auto-saved
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Saving...';
+    button.disabled = true;
+    
+    setTimeout(() => {
+        button.innerHTML = '<i class="fas fa-check me-1"></i> Saved!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+        }, 1000);
+    }, 500);
+}
+
+// Submit exam
+function submitExam() {
+    if (!confirm('Are you sure you want to submit your exam? This action cannot be undone.')) {
+        return;
+    }
+    
+    clearInterval(timerInterval);
+    clearInterval(autoSaveInterval);
+    
+    // Disable the button to prevent double submission
+    event.target.disabled = true;
+    event.target.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+    
+    // Submit the form
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/take/${submissionId}/`;
+    
+    const csrfToken = document.createElement('input');
+    csrfToken.type = 'hidden';
+    csrfToken.name = 'csrfmiddlewaretoken';
+    csrfToken.value = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    form.appendChild(csrfToken);
+    
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = 'submit_exam';
+    form.appendChild(actionInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Navigation
+function scrollToQuestion(questionId) {
+    document.getElementById(`question-${questionId}`).scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Start timer
+    timerInterval = setInterval(updateTimer, 1000);
+    updateTimer(); // Initial call
+    
+    // Start auto-save interval (every 30 seconds)
+    autoSaveInterval = setInterval(() => {
+        // Periodic server-side time check to prevent manipulation
+        fetch(`/take/${submissionId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: 'action=get_time'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.time_remaining !== undefined) {
+                // Sync with server time if there's a significant difference
+                const diff = Math.abs(timeRemaining - data.time_remaining);
+                if (diff > 5) { // More than 5 seconds difference
+                    timeRemaining = data.time_remaining;
+                }
+                
+                if (timeRemaining <= 0) {
+                    handleTimeUp();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error checking time:', error);
+        });
+    }, 30000);
+});
+
+// Template filter for getting dictionary values
+Object.defineProperty(Object.prototype, 'get_item', {
+    value: function(key) {
+        return this[key];
+    },
+    enumerable: false
+});
+</script>
+{% endblock %}

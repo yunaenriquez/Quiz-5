@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Exam Results - {{ submission.exam.title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Results Header -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Exam Results: {{ submission.exam.title }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5 class="text-success">Your Score</h5>
+                            <div class="display-4 text-success">{{ submission.score }} / {{ submission.total_marks }}</div>
+                            <p class="h5 text-muted">{{ percentage|floatformat:1 }}%</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <h6><i class="fas fa-user-graduate me-1"></i> Student:</h6>
+                                    <p>{{ submission.student.get_full_name }}</p>
+                                    
+                                    <h6><i class="fas fa-calendar me-1"></i> Date Taken:</h6>
+                                    <p>{{ submission.submitted_at|date:"M d, Y H:i" }}</p>
+                                </div>
+                                <div class="col-sm-6">
+                                    <h6><i class="fas fa-clock me-1"></i> Time Taken:</h6>
+                                    <p>{{ submission.time_taken }}</p>
+                                    
+                                    <h6><i class="fas fa-redo me-1"></i> Attempt #:</h6>
+                                    <p>{{ submission.attempt_number }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if submission.auto_submitted %}
+                        <div class="alert alert-warning mt-3" role="alert">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> This exam was automatically submitted when the time limit expired.
+                        </div>
+                    {% endif %}
+                    
+                    <!-- Performance Badge -->
+                    <div class="mt-3">
+                        {% if percentage >= 90 %}
+                            <span class="badge bg-success badge-lg">Excellent Performance!</span>
+                        {% elif percentage >= 80 %}
+                            <span class="badge bg-primary badge-lg">Good Performance!</span>
+                        {% elif percentage >= 70 %}
+                            <span class="badge bg-info badge-lg">Satisfactory Performance</span>
+                        {% elif percentage >= 60 %}
+                            <span class="badge bg-warning badge-lg">Needs Improvement</span>
+                        {% else %}
+                            <span class="badge bg-danger badge-lg">Poor Performance</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detailed Results -->
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list-alt me-2"></i>
+                        Detailed Results
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for answer_data in answers_data %}
+                        <div class="card mb-3 {% if answer_data.is_correct %}border-success{% else %}border-danger{% endif %}">
+                            <div class="card-header {% if answer_data.is_correct %}bg-light-success{% else %}bg-light-danger{% endif %}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0">
+                                        Question {{ forloop.counter }}
+                                        <span class="badge {% if answer_data.is_correct %}bg-success{% else %}bg-danger{% endif %}">
+                                            {% if answer_data.is_correct %}
+                                                <i class="fas fa-check me-1"></i>Correct
+                                            {% else %}
+                                                <i class="fas fa-times me-1"></i>Incorrect
+                                            {% endif %}
+                                        </span>
+                                    </h6>
+                                    <span class="badge bg-secondary">
+                                        {{ answer_data.points_earned }} / {{ answer_data.question.marks }} points
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="question-text mb-3"><strong>{{ answer_data.question.question_text }}</strong></p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Your Answer:</h6>
+                                        {% if answer_data.selected_choice %}
+                                            <p class="{% if answer_data.is_correct %}text-success{% else %}text-danger{% endif %}">
+                                                <i class="fas fa-{% if answer_data.is_correct %}check{% else %}times{% endif %} me-1"></i>
+                                                <strong>{{ answer_data.selected_choice.choice_label }}.</strong> {{ answer_data.selected_choice.choice_text }}
+                                            </p>
+                                        {% else %}
+                                            <p class="text-muted">
+                                                <i class="fas fa-ban me-1"></i>
+                                                No answer selected
+                                            </p>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    {% if not answer_data.is_correct and answer_data.correct_choice %}
+                                        <div class="col-md-6">
+                                            <h6>Correct Answer:</h6>
+                                            <p class="text-success">
+                                                <i class="fas fa-check me-1"></i>
+                                                <strong>{{ answer_data.correct_choice.choice_label }}.</strong> {{ answer_data.correct_choice.choice_text }}
+                                            </p>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if answer_data.explanation %}
+                                    <div class="alert alert-info mt-2" role="alert">
+                                        <strong><i class="fas fa-info-circle me-1"></i>Explanation:</strong>
+                                        {{ answer_data.explanation }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="text-center mt-4 mb-4">
+                <a href="{% url 'exam:student_exam' pk=submission.exam.pk %}" class="btn btn-primary me-2">
+                    <i class="fas fa-file-alt me-1"></i>
+                    Back to Exam Details
+                </a>
+                <a href="{% url 'exam:dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-home me-1"></i>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-lg {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
+}
+
+.bg-light-success {
+    background-color: #d4edda !important;
+}
+
+.bg-light-danger {
+    background-color: #f8d7da !important;
+}
+
+.question-text {
+    line-height: 1.6;
+}
+</style>
+{% endblock %}

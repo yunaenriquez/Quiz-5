@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Profile - {{ student.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Profile Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-user-circle fa-3x"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-1">{{ student.get_full_name }}</h3>
+                            <p class="mb-0">
+                                <i class="fas fa-envelope me-2"></i>{{ student.email }}
+                            </p>
+                            <small class="text-light">
+                                <i class="fas fa-graduation-cap me-2"></i>Student Profile
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Recent Exam Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if exam_performance %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Exam Title</th>
+                                        <th>Date Taken</th>
+                                        <th>Score</th>
+                                        <th>Passing Score</th>
+                                        <th>Result</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for performance in exam_performance %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ performance.exam.title }}</strong>
+                                            {% if performance.exam.description %}
+                                                <br><small class="text-muted">{{ performance.exam.description|truncatechars:50 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">
+                                                {{ performance.submission.submitted_at|date:"M d, Y" }}<br>
+                                                <small>{{ performance.submission.submitted_at|time:"H:i" }}</small>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold">{{ performance.submission.percentage }}%</span><br>
+                                            <small class="text-muted">{{ performance.submission.score }}/{{ performance.submission.total_marks }} points</small>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">{{ performance.exam.passing_percentage }}%</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge {{ performance.badge_class }}">
+                                                {{ performance.result_status }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'exam:exam_result' performance.submission.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye me-1"></i>View Details
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Exam History</h5>
+                            <p class="text-muted">You haven't completed any exams yet.</p>
+                            <a href="{% url 'exam:student_dashboard' %}" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>Browse Available Exams
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Average Score Card -->
+            <div class="card shadow mb-3">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>
+                        Average Score
+                    </h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="display-6 text-primary mb-2">{{ avg_score }}%</div>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ avg_score }}%" aria-valuenow="{{ avg_score }}" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <small class="text-muted">Overall Performance</small>
+                </div>
+            </div>
+
+            <!-- Grade Distribution -->
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Grade Distribution
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if total_exams_taken > 0 %}
+                        {% for grade_name, count in grade_ranges %}
+                            {% if count > 0 %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted">{{ grade_name }}</span>
+                                    <span class="badge bg-secondary">{{ count }}</span>
+                                </div>
+                                <div class="progress mb-3" style="height: 6px;">
+                                    <div class="progress-bar 
+                                        {% if 'A' in grade_name %}bg-success{% endif %}
+                                        {% if 'B' in grade_name %}bg-info{% endif %}
+                                        {% if 'C' in grade_name %}bg-warning{% endif %}
+                                        {% if 'D' in grade_name %}bg-orange{% endif %}
+                                        {% if 'F' in grade_name %}bg-danger{% endif %}" 
+                                        style="width: {% widthratio count total_exams_taken 100 %}%">
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No data available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Actions -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h6 class="card-title">Quick Actions</h6>
+                    <div class="btn-group" role="group">
+                        <a href="{% url 'exam:student_dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                        </a>
+                        <a href="{% url 'exam:student_dashboard' %}" class="btn btn-success">
+                            <i class="fas fa-clipboard-list me-1"></i>Available Exams
+                        </a>
+                        <button class="btn btn-info" onclick="window.print()">
+                            <i class="fas fa-print me-1"></i>Print Profile
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .btn, .card-header { 
+        -webkit-print-color-adjust: exact; 
+        color-adjust: exact; 
+    }
+}
+
+.bg-orange {
+    background-color: #fd7e14 !important;
+}
+</style>
+{% endblock %}

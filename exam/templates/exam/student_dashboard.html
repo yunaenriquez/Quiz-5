@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Student Dashboard - Quiz5{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-primary">
+                        <i class="fas fa-user-graduate me-2"></i>Student Dashboard
+                    </h2>
+                    <p class="text-muted mb-0">Welcome back, {{ user.get_full_name }}!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ available_exams }}</h4>
+                            <p class="mb-0">Available Now</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-play-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ upcoming_exams }}</h4>
+                            <p class="mb-0">Upcoming</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ total_exams }}</h4>
+                            <p class="mb-0">Total Assigned</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-list fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exams Grid -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h4 class="mb-3">Your Assigned Exams</h4>
+            {% if exams_with_status %}
+                <div class="row">
+                    {% for exam_data in exams_with_status %}
+                        {% with exam=exam_data.exam %}
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-header bg-light">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">
+                                            {% if exam.is_active_now %}
+                                                {% if exam_data.can_take_now %}
+                                                    <span class="badge bg-success">
+                                                        <i class="fas fa-play me-1"></i>Available
+                                                    </span>
+                                                {% elif exam_data.status == 'no_attempts' %}
+                                                    <span class="badge bg-danger">
+                                                        <i class="fas fa-ban me-1"></i>No Attempts
+                                                    </span>
+                                                {% elif exam_data.status == 'in_progress' %}
+                                                    <span class="badge bg-info">
+                                                        <i class="fas fa-spinner me-1"></i>In Progress
+                                                    </span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">
+                                                        <i class="fas fa-exclamation me-1"></i>Restricted
+                                                    </span>
+                                                {% endif %}
+                                            {% elif exam.is_upcoming %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock me-1"></i>Upcoming
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-lock me-1"></i>Expired
+                                                </span>
+                                            {% endif %}
+                                        </small>
+                                        <small class="text-muted">
+                                            <i class="fas fa-user-tie me-1"></i>{{ exam.teacher.get_full_name }}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary">{{ exam.title }}</h5>
+                                    {% if exam.description %}
+                                        <p class="card-text text-muted small">
+                                            {{ exam.description|truncatewords:15 }}
+                                        </p>
+                                    {% endif %}
+                                    
+                                    <!-- Date Information -->
+                                    <div class="mb-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar-alt me-1"></i>
+                                            <strong>Start:</strong> {{ exam.start_date_time|date:"M d, Y g:i A" }}
+                                        </small><br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-calendar-check me-1"></i>
+                                            <strong>End:</strong> {{ exam.end_date_time|date:"M d, Y g:i A" }}
+                                        </small>
+                                    </div>
+
+                                    <!-- Exam Info -->
+                                    <div class="mb-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-star me-1"></i>
+                                            Total Marks: <strong>{{ exam.total_marks }}</strong>
+                                        </small><br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-question-circle me-1"></i>
+                                            Questions: <strong>{{ exam.questions.count }}</strong>
+                                        </small><br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock me-1"></i>
+                                            Duration: <strong>{{ exam.duration_minutes }} minutes</strong>
+                                        </small><br>
+                                        <small class="text-muted">
+                                            <i class="fas fa-redo me-1"></i>
+                                            Attempts: <strong>{{ exam_data.attempts_made }} / {{ exam.max_attempts }}</strong>
+                                            {% if exam_data.remaining_attempts > 0 %}
+                                                ({{ exam_data.remaining_attempts }} left)
+                                            {% endif %}
+                                            {% if exam_data.status == 'in_progress' %}
+                                                <br><small class="text-info"><i class="fas fa-info-circle me-1"></i>You have an incomplete attempt</small>
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-light">
+                                    {% if exam.is_active_now %}
+                                        {% if exam_data.can_take_now %}
+                                            <a href="{% url 'exam:student_exam' pk=exam.pk %}" class="btn btn-success w-100">
+                                                <i class="fas fa-play me-1"></i>Take Exam
+                                            </a>
+                                        {% elif exam_data.status == 'no_attempts' %}
+                                            <button class="btn btn-danger w-100" disabled>
+                                                <i class="fas fa-ban me-1"></i>No Attempts Available
+                                            </button>
+                                        {% elif exam_data.status == 'in_progress' %}
+                                            <a href="{% url 'exam:student_exam' pk=exam.pk %}" class="btn btn-info w-100">
+                                                <i class="fas fa-spinner me-1"></i>Continue Exam
+                                            </a>
+                                        {% elif exam_data.status == 'no_access' %}
+                                            <button class="btn btn-warning w-100" disabled>
+                                                <i class="fas fa-lock me-1"></i>Access Restricted
+                                            </button>
+                                        {% else %}
+                                            <a href="{% url 'exam:student_exam' pk=exam.pk %}" class="btn btn-secondary w-100">
+                                                <i class="fas fa-info-circle me-1"></i>View Details
+                                            </a>
+                                        {% endif %}
+                                    {% elif exam.is_upcoming %}
+                                        <a href="{% url 'exam:student_exam' pk=exam.pk %}" class="btn btn-warning w-100">
+                                            <i class="fas fa-clock me-1"></i>View Details
+                                        </a>
+                                    {% else %}
+                                        <div class="d-flex gap-2">
+                                            <a href="{% url 'exam:student_exam' pk=exam.pk %}" class="btn btn-secondary flex-fill">
+                                                <i class="fas fa-info-circle me-1"></i>View Details
+                                            </a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endwith %}
+                    {% endfor %}
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <nav aria-label="Exam pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1">&laquo; First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last &raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Exams Assigned</h4>
+                    <p class="text-muted">You don't have any exams assigned to you yet. Check back later!</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
