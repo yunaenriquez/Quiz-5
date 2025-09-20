@@ -87,7 +87,7 @@ You'll be prompted to enter:
 
 #### 8. Run the Development Server
 ```bash
-python manage.py runserver
+ 
 ```
 
 Visit `http://127.0.0.1:8000/` to access the application.
